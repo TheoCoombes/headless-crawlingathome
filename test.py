@@ -11,6 +11,7 @@ client = cah.init(
 import json, requests, os
 from pathlib import Path
 
+
 def refreshToken(client_id, client_secret, refresh_token):
     params = {
         "grant_type": "refresh_token",
@@ -81,6 +82,9 @@ while client.jobCount() > 0:
 
     import multiprocessing
     n_processes = min(multiprocessing.cpu_count() * 2, 16)
+
+    from atpbar import atpbar
+    from atpbar import register_reporter, find_reporter, flush
     
     similarity_threshold = 0.3
     
@@ -112,7 +116,7 @@ while client.jobCount() > 0:
         content= content[int(len(content)*0.5):]    
 
 
-    def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_output_folder, n_processes):
+    def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_output_folder, n_processes, reporter):
     
         time_out=0.8
         import grequests
@@ -125,6 +129,7 @@ while client.jobCount() > 0:
         except:
           print("cannot load cairo")
         import pickle
+        register_reporter(reporter)
     
         #print("Number of lines in the chunk: " + str(len(content)))
         from pathlib import Path
@@ -148,7 +153,7 @@ while client.jobCount() > 0:
         #working_alt_text_count = 0
     
         #start_time = time.time()
-        for line in content:
+        for line in atpbar(content, name = "Worker "+str(index_w)):
         #print(line)
           line_str =line.decode("utf-8")
           alt_text_result=0
@@ -188,7 +193,7 @@ while client.jobCount() > 0:
                       continue
     
           if len(urls)>2000:
-            print ("new batch of " + str(len(urls)) + " urls...")
+            #print ("new batch of " + str(len(urls)) + " urls...")
                 
             try:
               # Once the last line of content is filtered, send the last requests
@@ -364,11 +369,12 @@ while client.jobCount() > 0:
     client.log("Downloading Images")
     #start_time = time.time()
     jobs = []
+    reporter = find_reporter()
     for i in range(n_processes):
         print("Starting to scraping part "+str(i)+ " of "+str(n_processes))
         content_chunk =content [i * int(len(content)/n_processes) : (i+1) * int(len(content)/n_processes)] #i*1000000
         FIRST_SAMPLE_ID_IN_CHUNK = FIRST_SAMPLE_ID_IN_SHARD+ i *int(N_SAMPLES_IN_SHARD/n_processes)
-        p = multiprocessing.Process(target=worker, args=[content_chunk,i,FIRST_SAMPLE_ID_IN_CHUNK,csv_output_folder, img_output_folder, n_processes])
+        p = multiprocessing.Process(target=worker, args=[content_chunk,i,FIRST_SAMPLE_ID_IN_CHUNK,csv_output_folder, img_output_folder, n_processes, reporter])
         jobs.append(p)
         p.start()
 
@@ -720,18 +726,17 @@ while client.jobCount() > 0:
                 #print (df.at[row_index2,'TRANSLATION']))
                 df = df.drop(row_index2)
                 continue
-    
-    
+
     similarity_counter= 0
-    for row_index, row in df.iterrows():
+    for row_index, row in atpbar(df.iterrows(),name="Similarity and NSWF processing"):
         try:
     
         #if similarity_counter>500 and similarity_counter%10==0:
             #!nvidia-smi
     
-            if row_index % 100 ==0:
+            #if row_index % 100 ==0:
                 #print("row_index: "+ str(row_index))
-                client.log(f"Removing NFSW: {row_index} / ?")
+                #client.log(f"Removing NFSW: {row_index} / ?")
 
             sample_id = df.at[row_index,'SAMPLE_ID']
             index_of_row_in_list= sample_ids_tokenized_texts.index(sample_id)
@@ -798,8 +803,8 @@ while client.jobCount() > 0:
                     #keyword check
                     if str(df.at[row_index,'TEXT']).lower().find("teen") !=-1 or str(df.at[row_index,'TEXT']).lower().find("kid") !=-1  or  str(df.at[row_index,'TEXT']).lower().find("child") !=-1 or str(df.at[row_index,'TEXT']).lower().find("baby") !=-1 :
                         df = df.drop(row_index)
-                        print(###########NSFW KEYWORD DROP##############)
-                        print (df.at[row_index,'TEXT']))
+                        #print(###########NSFW KEYWORD DROP##############)
+                        #print (df.at[row_index,'TEXT']))
                         continue
                     
                     #first 4 are underaged, 0-3
@@ -834,7 +839,7 @@ while client.jobCount() > 0:
                         del image_embedding_dict[str(sample_id)]
                         df = df.drop(row_index)
 
-                        print("dropped cause NSFW and eventually underaged")
+                        #print("dropped cause NSFW and eventually underaged")
                         
                         continue
         
@@ -866,7 +871,7 @@ while client.jobCount() > 0:
                         del image_embedding_dict[str(sample_id)]
 
                         df = df.drop(row_index)
-                        print("dropped cause NSFW and eventually animal")
+                        #print("dropped cause NSFW and eventually animal")
                         
                         continue
 
