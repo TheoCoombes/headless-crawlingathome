@@ -19,7 +19,7 @@ import multiprocessing
 n_processes = multiprocessing.cpu_count() # * 2
 
 similarity_threshold = 0.3
-classifier_embbedings_calculated= False
+
 import time
 import os
 from pathlib import Path
@@ -718,11 +718,11 @@ while True:
         
         #0-18 /first 19 are not NSFW
         nsfw_text_categories = ["neutral","selfie", "illustration, drawng", "toys, play, kids, children", "teddy bear, puppet", "animal, bird, mammal, insect" "fashion, clothes", "logo, commercial, ad, advertisement", "drawing, painting","anime, cartoon","comedy, fun","romance, love story","thriller, suspense, crime story","action, action movie", "horror, monster movie", "documentary", "news, journalism", "entertainment", "talk show", "porn, sex, sperm, nipples, breats, tits, boops, penis, dick, cock, clitoris, vagina, fuck, lust, horny, sexual, lick, licking",  "porn, sex, sperm, nipples", "porn, sex, sperm, penis, dick, cock", "nipples, breats, tits, boops, sexy", "penis, dick, cock", "clitoris, vagina", "sex, fuck, lust, horny, sexual, lick, licking", "porn, sex, sexy","sexy, hot","sperm, skin","lust, horny, sexual","lick, licking, body", "anime, hentai, sexy", "cartoon, sexy, sex", "hentai", "anime, sexy, breasts", "hentai"]
-        if classifier_embbedings_calculated == False:
-          nsfw_text_tokenized = clip.tokenize(nsfw_text_categories).to(device)
-          nsfw_text_features =[]
-          with torch.no_grad():
-            nsfw_text_embed = model.encode_text(nsfw_text_tokenized)
+
+        nsfw_text_tokenized = clip.tokenize(nsfw_text_categories).to(device)
+        nsfw_text_features =[]
+        with torch.no_grad():
+          nsfw_text_embed = model.encode_text(nsfw_text_tokenized)
 
         for i in range(nsfw_text_embed.shape[0]):
             nsfw_text_features.append(nsfw_text_embed[i])
@@ -738,11 +738,11 @@ while True:
         #first 4 are underaged, 0-3
         underaged_categories = ["teenager, teen", "kid, child, teenager, teen, baby or toddler, underaged, little girl, little boy", "kid, child, little girl, little boy", "baby, toddler","adult, woman, man, grownup, grown person,full-aged of legal age","full-aged, of legal age, adult","woman, man","adult, woman, man, grownup, grown person,full-aged of legal age"]
         
-        if classifier_embbedings_calculated == False:
-          underaged_text_tokenized = clip.tokenize(underaged_categories).to(device)
-          underaged_text_features =[]
-          with torch.no_grad():
-            underaged_text_embed = model.encode_text(underaged_text_tokenized)
+
+        underaged_text_tokenized = clip.tokenize(underaged_categories).to(device)
+        underaged_text_features =[]
+        with torch.no_grad():
+          underaged_text_embed = model.encode_text(underaged_text_tokenized)
 
         for i in range(underaged_text_embed.shape[0]):
             underaged_text_features.append(underaged_text_embed[i])
@@ -752,14 +752,11 @@ while True:
 
         #0-20 /first 21 are not animals
         animal_categories = ["lifelss object, thing", "thing, object", "material", "furniture","wall", "house", "tree", "wood","ground","industry", "table", "bed", "tool", "dress, clothes", "door", "chair", "rock, stone", "human", "man", "woman", "man, woman", "animal","cat","dog", "cow", "pig", "goat", "sheep", "elephant", "horse", "horse, elephant, pig, dog, cat, sheep, goat, animal", "life", "wildlife"]
-        if classifier_embbedings_calculated == False:
-          animal_text_tokenized = clip.tokenize(animal_categories).to(device)
-          animal_text_features =[]
-          with torch.no_grad():
-            animal_text_embed = model.encode_text(animal_text_tokenized)
-
-        # no need to calculate them again next iteration ;)
-        classifier_embbedings_calculated = True
+        
+        animal_text_tokenized = clip.tokenize(animal_categories).to(device)
+        animal_text_features =[]
+        with torch.no_grad():
+          animal_text_embed = model.encode_text(animal_text_tokenized)
 
         for i in range(animal_text_embed.shape[0]):
             animal_text_features.append(animal_text_embed[i])
@@ -1166,4 +1163,3 @@ while True:
     sleep(30)
 
     # now we will attempt to connect again
-    #worker name: lateener-miseducations-838
