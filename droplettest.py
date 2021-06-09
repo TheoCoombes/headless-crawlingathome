@@ -1,45 +1,45 @@
 YOUR_NICKNAME_FOR_THE_LEADERBOARD = "rvencu" #@param {type:"string"}
 CRAWLINGATHOME_SERVER_URL = "http://crawlingathome.duckdns.org/"
-
+ 
 from contextlib import contextmanager
 import sys
 import numpy as np
 from PIL import Image
-
+ 
 import time
-
+ 
 import os
 #from IPython.utils import io
 #from IPython.display import clear_output
 from time import sleep
-
+ 
 import json, requests
 from pathlib import Path
 import multiprocessing
 n_processes = multiprocessing.cpu_count() # * 2
-
+ 
 similarity_threshold = 0.3
 
 import time
 import os
 from pathlib import Path
-
+ 
 import gc
 #import torch.nn as nn
 #cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
-
+ 
 from zipfile import ZipFile
 import zipfile
 import zlib
 import pickle
-
+ 
 import gc
 import math
-
+ 
 import random
-
+ 
 import tensorflow as tf
-
+ 
 def refreshToken(client_id, client_secret, refresh_token):
     params = {
         "grant_type": "refresh_token",
@@ -47,16 +47,16 @@ def refreshToken(client_id, client_secret, refresh_token):
         "client_secret": client_secret,
         "refresh_token": refresh_token
     }
-
+ 
     authorization_url = "https://www.googleapis.com/oauth2/v4/token"
-
+ 
     r = requests.post(authorization_url, data=params)
-
+ 
     if r.ok:
         return r.json()['access_token']
     else:
         return None
-
+ 
 @contextmanager
 def suppress_stdout():
     with open(os.devnull, "w") as devnull:
@@ -66,16 +66,16 @@ def suppress_stdout():
             yield
         finally:
             sys.stdout = old_stdout
-
-
-
+ 
+ 
+ 
 def uploadGdrive(output_filename):
     #output_filename = Path(output_filename).name
-
+ 
     access_t = refreshToken("648172777761-onv1nc5f93nhlhf63flsq6onrmjphpfo.apps.googleusercontent.com","HZ4Zw-_jVJ-3mwicz1NM5W5x", "1//04N2Kysz1LObLCgYIARAAGAQSNwF-L9IrntHNWi2_nEVu2QX5fmlW0Ea0qA-ToBJLSdatDATYxiKcNFI8eZQ_fYN53gjF7b8MGmA")                                                                                                   
-
+ 
     headers = {"Authorization": "Bearer " + access_t} #put ur access token after the word 'Bearer '
-
+ 
     para = {
         "name": output_filename.split("/")[-1], # file name to be uploaded
         "parents": ["1CIgcIR7nX2xNBPB577jwEqbbwxAJR_nt"] # make a folder on drive in which you want to upload files; then open that folder; the last thing in present url will be folder id
@@ -90,30 +90,30 @@ def uploadGdrive(output_filename):
         headers=headers,
         files=files
     )
-
-
+ 
+ 
 # ----------------------------------------------------------------------------
-
-
+ 
+ 
 #clear_output(wait=True)
-
+ 
 import crawlingathome as cah
-
+ 
 client = cah.init(
     url=CRAWLINGATHOME_SERVER_URL,
     nickname= YOUR_NICKNAME_FOR_THE_LEADERBOARD
 )
-
-
-
-
-
+ 
+ 
+ 
+ 
+ 
 def imgfiles_to_embeddings(list_of_files, batch_size, model, preprocess):
               if batch_size<2:
                 print("Minimal batch_size is 2 ")
                 return []
-
-
+ 
+ 
               print("len(list_of_files)")
               print(len(list_of_files))
               #print(os.getcwd())
@@ -122,41 +122,41 @@ def imgfiles_to_embeddings(list_of_files, batch_size, model, preprocess):
               #import torch
               #import clip
               #from PIL import Image
-
-
-
-
+ 
+ 
+ 
+ 
               #device = "cuda" if torch.cuda.is_available() else "cpu"
               #model, preprocess = clip.load("ViT-B/32", device=device)
-
+ 
               #image = preprocess(Image.open("/content/V-300.png")).unsqueeze(0).to(device)
               #text = clip.tokenize(["a diagram", "a dog", "a cat"]).to(device)
-
+ 
               counter_samples =0
-
+ 
               list_of_arrays_to_concat = []
               list_of_tokenized_text_arrays =[]
               list_of_arrays_to_concat = []
               list_of_image_arrays =[]
               list_of_tokenized_text_arrays =[]
               img_embeddings= []
-
-
-
+ 
+ 
+ 
               #devices =  jax.local_devices()
-
+ 
               #print(f"jax devices: {devices}")
-
+ 
               #jax_params = jax.device_put_replicated(jax_params, devices)
               #image_fn = jax.pmap(image_fn)
-
+ 
               for img_path in list_of_files:
-
-                try:
-                  new_image_array = preprocess(Image.open(img_path).convert("RGB") ).unsqueeze(0).to(device)
-                except:
-                  new_image_array = preprocess(Image.new("RGB", (300, 300), (255, 255, 255))).unsqueeze(0).to(device)
-
+                with suppress_stdout():
+                  try:
+                    new_image_array = preprocess(Image.open(img_path).convert("RGB") ).unsqueeze(0).to(device)
+                  except:
+                    new_image_array = preprocess(Image.new("RGB", (300, 300), (255, 255, 255))).unsqueeze(0).to(device)
+  
                 #new_image_array = np.expand_dims(jax_preprocess(Image.open(img_path)), (0, 1))
                 #print("new_image_array = np.expand_dims(jax_preprocess(Image.open(img_path)), (0, 1))")
                 #print(new_image_array.shape)  torch.cat((image,image,image,image,image,image,image,image,image,image), 0)
@@ -164,8 +164,8 @@ def imgfiles_to_embeddings(list_of_files, batch_size, model, preprocess):
                 #  list_of_samples_to_drop.append(sample_id)
                 #  print("dropped sample: "+str(sample_id))
                 #  continue
-
-
+ 
+ 
                 if counter_samples%batch_size ==0:
                   image_array =new_image_array
                   #tokenized_text_np_array = tokenized_text_np_array_new_sample
@@ -175,93 +175,95 @@ def imgfiles_to_embeddings(list_of_files, batch_size, model, preprocess):
                   image_array =  torch.cat((image_array,new_image_array), 0)
                   counter_samples +=1
                   #print(image_array.shape)
-
-
+ 
+ 
                 
                 if counter_samples%batch_size ==0:
                     print("counter_samples in embedding process")
                     print(counter_samples)
-                    with torch.no_grad():
-                      image_features = model.encode_image(image_array)
-                      print("batch successfully embedded")
-                      
-
+                    with suppress_stdout():
+                      with torch.no_grad():
+                        image_features = model.encode_image(image_array)
+                        print("batch successfully embedded")
+                        
+ 
                       for i in range (image_features.shape[0]):
                           img_embeddings.append(torch.reshape(image_features[i], (1, 512)))
                           #img_embeddings.append(image_features[i])
                           #print(torch.reshape(image_features[i], (1, 512)) .shape)
-              with torch.no_grad():
-                  image_features = model.encode_image(image_array)
-                  for i in range (image_features.shape[0]):
-                    img_embeddings.append(torch.reshape(image_features[i], (1, 512)))
-                    #img_embeddings.append(image_features[i])
-
+              with suppress_stdout():
+                  with torch.no_grad():
+                      image_features = model.encode_image(image_array)
+                      for i in range (image_features.shape[0]):
+                        img_embeddings.append(torch.reshape(image_features[i], (1, 512)))
+                        #img_embeddings.append(image_features[i])
+ 
               #print(len(img_embeddings))
               #print(img_embeddings[0].shape)
               return img_embeddings
-
-
+ 
+ 
 def prepare_dirs():
         os.system("ulimit -n 120000")
-
+ 
         os.system('mkdir ./save')
         os.system('rm ./save/*.*')    
-
+ 
         os.system('mkdir ./save/images')
         os.system('rm ./save/images/*.*')
         
         
         os.system('mkdir ./finished')
         os.system('rm ./finished/*.*')
-
-
-
-
+ 
+ 
+ 
+ 
 def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_output_folder, n_processes):
 
     time_out=0.8
-
-    try:
-      with suppress_stdout():
-        # avoid importing twice
-        grequests.get
-    except:
-        import grequests
+    with suppress_stdout():
+        try:
+          with suppress_stdout():
+            # avoid importing twice
+            grequests.get
+        except:
+            import grequests
+        
+        import os
+        import time
+        import json
+        from collections import OrderedDict
+        try:
+          import cairosvg
+        except:
+          print("failed loading cairosvg")
     
-    import os
-    import time
-    import json
-    from collections import OrderedDict
-    try:
-      import cairosvg
-    except:
-      print("failed loading cairosvg")
-
     import pickle
-
+ 
     #print("Number of lines in the chunk: " + str(len(content)))
     from pathlib import Path
-
+ 
     import time
-
+ 
     processed_contentlines= 0
     urls=[]
     alttexts=[]
-
+ 
     dedupe_urls=[]
     dedupe_alttexts=[]
-
+ 
     processed_samples =[]
-
-
+ 
+ 
     CURRENT_SAMPLE_ID=FIRST_SAMPLE_ID_IN_CHUNK
-
+ 
     for line in content:
     #print(line)
       line_str =line.decode("utf-8")
       alt_text_result=0
       img_result=0
-
+ 
       img_result =line_str.find("IMG@")
       processed_contentlines += 1
       if img_result>0:
@@ -278,7 +280,7 @@ def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_outp
               
               if len(e["alt"]) >4:
                 #print(e["alt"])
-
+ 
                 try:
                   if e["url"][0] =="h" and not e["url"] in dedupe_urls and not e["alt"] in dedupe_alttexts:
                     
@@ -293,7 +295,7 @@ def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_outp
             
                 except:
                   continue
-
+ 
       if len(urls)>2000:
         
             
@@ -301,33 +303,33 @@ def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_outp
           with suppress_stdout():
             # Once the last line of content is filtered, send the last requests
             rs = (grequests.get(u, timeout=time_out) for u in urls)
-
+ 
             os.system("ulimit -n 120000")
             responses = grequests.map(rs)
             sleep(0.8)
         except:
           continue
-
+ 
         for i in range (len(responses)):
           try:
             
             if responses[i].status_code == 200 and  responses[i].headers['Content-Type'][:3]=="ima" and len(responses[i].content)>5000:
-
+ 
                 #print(urls[i])
                 filetype = Path(urls[i]).suffix    #os.path.splitext(e["url"])[1]
                 #print(filetype)
-
+ 
                 if len(filetype)<4:
                   continue
-
+ 
                 if filetype[:4] ==".jpg" or filetype[:4] ==".JPG" or filetype[:4] ==".png" or filetype[:4] ==".PNG" or filetype[:4] ==".svg" or filetype[:4] ==".SVG" or filetype[:4] ==".gif" or filetype[:4] ==".GIF" or filetype[:4] ==".bmp" or filetype[:4] ==".BMP" or filetype[:4] ==".tif" or filetype[:4] ==".TIF":
                   if len(filetype)>4:
                     filetype = filetype[:4] 
-
-
+ 
+ 
                 if (filetype[:5] ==".webp" or filetype[:5] ==".WEBP" or filetype[:5] ==".jpeg" or filetype[:5] ==".JPEG")  and len(filetype)>5:
                   filetype = filetype[:5] 
-
+ 
                 if filetype[:4] != ".jpg" and filetype[:4] != ".JPG" and filetype[:4] != ".png" and filetype[:4] !=".PNG" and filetype[:4] !=".svg" and filetype[:4] !=".SVG" and filetype[:4] !=".gif" and filetype[:4] != ".GIF" and filetype[:4] !=".bmp" and filetype[:4] !=".BMP" and filetype[:4] !=".tif" and filetype[:4] !=".TIF"and filetype[:5] !=".webp" and filetype[:5] !=".WEBP" and filetype[:5] !=".jpeg" and filetype[:5] !=".JPEG":
                   continue
                     
@@ -347,7 +349,7 @@ def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_outp
                       #print("Saved: "+img_output_folder + str(CURRENT_SAMPLE_ID)+filetype)
                   except:
                     continue
-
+ 
                 processed_samples.append([CURRENT_SAMPLE_ID, urls[i], alttexts[i]])
                 
                 CURRENT_SAMPLE_ID +=1
@@ -355,11 +357,11 @@ def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_outp
               
           except:
             continue
-
+ 
         urls=[]
         alttexts=[]
-
-
+ 
+ 
     try:
       with suppress_stdout():
         # Once the last line of content is filtered, send the last requests
@@ -370,11 +372,11 @@ def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_outp
         sleep(0.8)
     except:
       responses=[]
-
+ 
     for i in range (len(responses)):
       if responses[i]==None:
         continue
-
+ 
       try:
         
         if responses[i].status_code == 200 and  responses[i].headers['Content-Type'][:3]=="ima" and len(responses[i].content)>5000:
@@ -382,25 +384,25 @@ def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_outp
             filetype = Path(urls[i]).suffix 
             if len(filetype)<4:
               continue
-
+ 
             if filetype[:4] ==".jpg" or filetype[:4] ==".JPG" or filetype[:4] ==".png" or filetype[:4] ==".PNG" or filetype[:4] ==".svg" or filetype[:4] ==".SVG" or filetype[:4] ==".gif" or filetype[:4] ==".GIF" or filetype[:4] ==".bmp" or filetype[:4] ==".BMP" or filetype[:4] ==".tif" or filetype[:4] ==".TIF":
               if len(filetype)>4:
                 filetype = filetype[:4] 
-
+ 
             if (filetype[:5] ==".webp" or filetype[:5] ==".WEBP" or filetype[:5] ==".jpeg" or filetype[:5] ==".JPEG")  and len(filetype)>5:
               filetype = filetype[:5] 
-
+ 
             if filetype[:4] != ".jpg" and filetype[:4] != ".JPG" and filetype[:4] != ".png" and filetype[:4] !=".PNG" and filetype[:4] !=".svg" and filetype[:4] !=".SVG" and filetype[:4] !=".gif" and filetype[:4] != ".GIF" and filetype[:4] !=".bmp" and filetype[:4] !=".BMP" and filetype[:4] !=".tif" and filetype[:4] !=".TIF"and filetype[:5] !=".webp" and filetype[:5] !=".WEBP" and filetype[:5] !=".jpeg" and filetype[:5] !=".JPEG":
               continue
-
-
+ 
+ 
             if filetype == ".svg":
               #print("SVG found")
               try:
                 output_filename= img_output_folder + str(CURRENT_SAMPLE_ID)+filetype
                 with suppress_stdout():
                   cairosvg.svg2png( url=urls[i], write_to=output_filename, output_height=600)
-
+ 
               except:
                 continue
             else:
@@ -419,50 +421,50 @@ def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_outp
                       img = img.resize((basewidth,hsize), Image.ANTIALIAS)
                       os.remove(img_output_folder + str(CURRENT_SAMPLE_ID)+filetype)
                       img.save(img_output_folder + str(CURRENT_SAMPLE_ID)+'.jpg', quality=90)
-
+ 
               except:
                 continue
-
+ 
             processed_samples.append([CURRENT_SAMPLE_ID, urls[i], alttexts[i] ])
             CURRENT_SAMPLE_ID +=1
             
     
             
-
+ 
       except:
         continue
-
-
+ 
+ 
     import pandas as pd
     sample_ids= []
     sample_urls=[]
     sample_texts=[]
-
-
+ 
+ 
     for e in processed_samples:
       sample_ids.append(e[0])
       sample_urls.append(e[1])
       sample_texts.append(e[2])
-
+ 
     df = pd.DataFrame(list(zip(sample_ids,sample_urls,sample_texts)),   columns =['SAMPLE_ID', 'URL', 'TEXT'])
-
+ 
     output_filename= csv_output_folder +"FIRST_SAMPLE_ID_"+str(FIRST_SAMPLE_ID_IN_CHUNK) + "__LAST_SAMPLE_ID_"+ str(CURRENT_SAMPLE_ID-1)+"_"+str(n_processes)+".csv"
   
     df.to_csv(output_filename ,sep = '|',header=True, mode='w', index=False)
-
-
-
-
-
+ 
+ 
+ 
+ 
+ 
 #@title Main Worker
-
-
+ 
+ 
 first = True
-
+ 
 while True:
-
+ 
  try:
-
+ 
     if not first:
         client = cah.init(
             url=CRAWLINGATHOME_SERVER_URL,
@@ -470,14 +472,14 @@ while True:
         )
     else:
         first = False
-
+ 
     while client.jobCount() > 0:
-
+ 
         #with io.capture_output() as _:
-
+ 
         with suppress_stdout():
           prepare_dirs()
-
+ 
         # Crawling@Home
         client.newJob()
         client.downloadShard() # Shard is located at './shard.wat'
@@ -492,7 +494,7 @@ while True:
         N_SAMPLES_IN_SHARD = LAST_SAMPLE_ID_IN_SHARD -FIRST_SAMPLE_ID_IN_SHARD 
         shard_of_chunk = client.shard_piece  # should have values 0 - 1 ; says which 50% of a chunk will be processed
         
-
+ 
         start_time = time.time()
         
         client.log("Downloading Images")
@@ -513,18 +515,18 @@ while True:
         if shard_of_chunk ==0: 
             linetobegin= 1 #int(counter /2)
             linetoend= int(lines_in_wat /2)
-
+ 
         if shard_of_chunk ==1: 
             linetobegin= int(lines_in_wat /2)
             linetoend= lines_in_wat 
-
+ 
    
         line_in_wat = 0
         i=0
         current_line = -10
-
+ 
         lines_for_each_worker = 50000
-
+ 
         n_processes = math.ceil ((linetoend - linetobegin) / lines_for_each_worker  ) #ceil rounds up
         with open('shard.wat', 'rb') as infile:
             for line in infile:
@@ -537,7 +539,7 @@ while True:
                 if line_in_wat > linetobegin:
                   content.append(line)
                   current_line +=1
-
+ 
                 if current_line % lines_for_each_worker==lines_for_each_worker-1 or current_line==linetoend:
  
                     
@@ -560,8 +562,8 @@ while True:
                         del p
                     gc.collect()
                     #break
-
-
+ 
+ 
         import sys
         
         
@@ -618,13 +620,13 @@ while True:
         output_filename= output_folder + 'FIRST_SAMPLE_ID_IN_SHARD_'+str(FIRST_SAMPLE_ID_IN_SHARD)+"_LAST_SAMPLE_ID_IN_SHARD_"+str(LAST_SAMPLE_ID_IN_SHARD)+"_"+ str(shard_of_chunk)
         dir_name = "./save/images"
         #shutil.make_archive(output_filename, 'zip', dir_name)
-
+ 
         print("--- %s seconds ---" % (time.time() - start_time))
         #print( os.stat(output_filename+".zip"))
-
-
-
-
+ 
+ 
+ 
+ 
         import torch.nn as nn
         cosine_similarity = nn.CosineSimilarity(dim=1, eps=1e-6)
         
@@ -640,50 +642,51 @@ while True:
         for img_path in img_files:
             path = Path(img_path)
             path.name
-            img_files_ids[path.stem]= img_path
-            img_ids_by_filepath[img_path] = path.stem
+            s_id =path.stem
+            img_files_ids[s_id]= img_path
+            img_ids_by_filepath[img_path] = s_id
         
         #print(img_files_ids)
-
+ 
         import torch
         import clip
         from PIL import Image
-
-
-
-
+ 
+ 
+ 
+ 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model, preprocess = clip.load("ViT-B/32", device=device)
-
+ 
         batch_size =32
         with suppress_stdout():
           img_emb_list= imgfiles_to_embeddings(img_files, batch_size, model, preprocess)
-
+ 
         #print("len(img_files)")
         #print(len(img_files))
-
-
+ 
+ 
         print("len(img_emb_list)")
         print(len(img_emb_list))
-
+ 
         image_embedding_dict = {}
-
+ 
         c= 0
         for path in img_files:
             img_sample_id = img_ids_by_filepath[path]
             image_embedding_dict[img_sample_id] = img_emb_list[c]
-
+ 
             c +=1
-
+ 
         #print("len(image_embedding_dict)")
         #print(len(image_embedding_dict))
-
-
+ 
+ 
         untokenized_texts=[]
-
+ 
         tokenized_texts=[]
         sample_ids_tokenized_texts=[]
-
+ 
         text_embedding_list = []
         with suppress_stdout():
           for row_index, row in df.iterrows():
@@ -692,41 +695,41 @@ while True:
               if row_index% 64 ==0 and row_index >0:
                   #print("currently tokenizing & embedding Texts from df row ")
                   #print(row_index) 
-
+ 
                   tokenized_texts = clip.tokenize(untokenized_texts).to(device)
                   with torch.no_grad():
                     text_embeddings = model.encode_text(tokenized_texts)
                   for i in range(text_embeddings.shape[0]):
                     text_embedding_list.append(text_embeddings[i])
-
+ 
                   untokenized_texts=[]
-
+ 
           if len(untokenized_texts)>0:      
               tokenized_texts = clip.tokenize(untokenized_texts).to(device)
-
+ 
               with torch.no_grad():
                 text_embeddings = model.encode_text(tokenized_texts)
               for i in range(text_embeddings.shape[0]):
                 text_embedding_list.append(text_embeddings[i])
               untokenized_texts=[]
-
-
-
+ 
+ 
+ 
         print("text embeddings done")
-
+ 
         #### NSFW detector categories text embeddings
         
         #0-18 /first 19 are not NSFW
         nsfw_text_categories = ["neutral","selfie", "illustration, drawng", "toys, play, kids, children", "teddy bear, puppet", "animal, bird, mammal, insect" "fashion, clothes", "logo, commercial, ad, advertisement", "drawing, painting","anime, cartoon","comedy, fun","romance, love story","thriller, suspense, crime story","action, action movie", "horror, monster movie", "documentary", "news, journalism", "entertainment", "talk show", "porn, sex, sperm, nipples, breats, tits, boops, penis, dick, cock, clitoris, vagina, fuck, lust, horny, sexual, lick, licking",  "porn, sex, sperm, nipples", "porn, sex, sperm, penis, dick, cock", "nipples, breats, tits, boops, sexy", "penis, dick, cock", "clitoris, vagina", "sex, fuck, lust, horny, sexual, lick, licking", "porn, sex, sexy","sexy, hot","sperm, skin","lust, horny, sexual","lick, licking, body", "anime, hentai, sexy", "cartoon, sexy, sex", "hentai", "anime, sexy, breasts", "hentai"]
-
+        
         nsfw_text_tokenized = clip.tokenize(nsfw_text_categories).to(device)
         nsfw_text_features =[]
         with torch.no_grad():
           nsfw_text_embed = model.encode_text(nsfw_text_tokenized)
-
+ 
         for i in range(nsfw_text_embed.shape[0]):
             nsfw_text_features.append(nsfw_text_embed[i])
-
+ 
          
         
         listofzeros = ["-"] * len(df)
@@ -738,21 +741,20 @@ while True:
         #first 4 are underaged, 0-3
         underaged_categories = ["teenager, teen", "kid, child, teenager, teen, baby or toddler, underaged, little girl, little boy", "kid, child, little girl, little boy", "baby, toddler","adult, woman, man, grownup, grown person,full-aged of legal age","full-aged, of legal age, adult","woman, man","adult, woman, man, grownup, grown person,full-aged of legal age"]
         
-
+      
         underaged_text_tokenized = clip.tokenize(underaged_categories).to(device)
         underaged_text_features =[]
         with torch.no_grad():
           underaged_text_embed = model.encode_text(underaged_text_tokenized)
-
+ 
         for i in range(underaged_text_embed.shape[0]):
             underaged_text_features.append(underaged_text_embed[i])
-
+ 
         
       
-
+ 
         #0-20 /first 21 are not animals
         animal_categories = ["lifelss object, thing", "thing, object", "material", "furniture","wall", "house", "tree", "wood","ground","industry", "table", "bed", "tool", "dress, clothes", "door", "chair", "rock, stone", "human", "man", "woman", "man, woman", "animal","cat","dog", "cow", "pig", "goat", "sheep", "elephant", "horse", "horse, elephant, pig, dog, cat, sheep, goat, animal", "life", "wildlife"]
-        
         animal_text_tokenized = clip.tokenize(animal_categories).to(device)
         animal_text_features =[]
         with torch.no_grad():
@@ -760,7 +762,7 @@ while True:
 
         for i in range(animal_text_embed.shape[0]):
             animal_text_features.append(animal_text_embed[i])
-
+ 
         
         # given an iterable of pairs return the key corresponding to the greatest value
         def argmax(pairs):
@@ -775,11 +777,11 @@ while True:
         
         df["similarity"]=listofzeros
         
-
+ 
         img_dict_counter= 0
         #print ("len(df) before 1st for row_index, row in df.iterrows():"+str(len(df)))
-
-
+ 
+ 
         client.log("Dropping NSFW Keywords")
         
         
@@ -804,7 +806,7 @@ while True:
         
                 #if row_index % 1000 ==0:
                     #client.log(f"Removing NFSW: {row_index} / ?")
-
+ 
                 sample_id = df.at[row_index,'SAMPLE_ID']
                 index_of_row_in_list= sample_ids_tokenized_texts.index(sample_id)
                 #print("index_of_row_in_list")
@@ -812,17 +814,17 @@ while True:
                 if index_of_row_in_list==-1:
                     df = df.drop(row_index)
                     continue
-
+ 
                 current_text_embedding = text_embedding_list[index_of_row_in_list]
                 current_image_embedding = image_embedding_dict[str(sample_id)]
-
+ 
                 similarity= float (cosine_similarity(torch.reshape(current_text_embedding, (1, 512)) , current_image_embedding )) 
                 if similarity > similarity_threshold:
                     df.at[row_index,'similarity'] = similarity
                     similarity_counter +=1
-
-
-
+ 
+ 
+ 
                     #0-18 /first 19 are not NSFW
                     nsfw_text_categories = ["neutral","selfie", "illustration, drawng", "toys, play, kids, children", "teddy bear, puppet", "animal, bird, mammal, insect" "fashion, clothes", "logo, commercial, ad, advertisement", "drawing, painting","anime, cartoon","comedy, fun","romance, love story","thriller, suspense, crime story","action, action movie", "horror, monster movie", "documentary", "news, journalism", "entertainment", "talk show", "porn, sex, sperm, nipples, breats, tits, boops, penis, dick, cock, clitoris, vagina, fuck, lust, horny, sexual, lick, licking",  "porn, sex, sperm, nipples", "porn, sex, sperm, penis, dick, cock", "nipples, breats, tits, boops, sexy", "penis, dick, cock", "clitoris, vagina", "sex, fuck, lust, horny, sexual, lick, licking", "porn, sex, sexy","sexy, hot","sperm, skin","lust, horny, sexual","lick, licking, body", "anime, hentai, sexy", "cartoon, sexy, sex", "hentai", "anime, sexy, breasts", "hentai"]
                     #nsfw_text_features = model.encode_text(nsfw_text_categories)
@@ -853,7 +855,7 @@ while True:
                     elif argmax1 >=19 and argmax2>=19:
                         df.at[row_index,'NSFW'] = "NSFW"
             
-
+ 
             
                     ####underaged check 
                     if df.at[row_index,'NSFW'] != "UNLIKELY":
@@ -888,7 +890,7 @@ while True:
                             #print( df.at[row_index,'URL'] )
                             del image_embedding_dict[str(sample_id)]
                             df = df.drop(row_index)
-
+ 
                             #print("dropped cause NSFW and eventually underaged")
                             
                             continue
@@ -902,13 +904,13 @@ while True:
             
                         similarities=[]
             
-
+ 
                         for i in range(len(animal_text_features)):
                             #similarities.append( cosine_similarity([animal_text_features[i][0]], [current_image_embedding[0][0]]) )
                             similarity= float (cosine_similarity(torch.reshape(animal_text_features[i], (1, 512)) , current_image_embedding )) 
                             similarities.append( similarity )       
                         #print ("most_likely")
-
+ 
                         #print (most_likely)
             
                         argmax1= argmax_index(similarities)
@@ -917,19 +919,19 @@ while True:
             
                         #print(second_likely)
                         if argmax1 >20:
-
+ 
                             del image_embedding_dict[str(sample_id)]
-
+ 
                             df = df.drop(row_index)
                             #print("dropped cause NSFW and eventually animal")
                             
                             continue
-
+ 
                 else:
                     del image_embedding_dict[str(sample_id)]
                     df = df.drop(row_index)
                     continue
-
+ 
             except Exception as e:
                 #print("dropped sample: "+str(df.at[row_index,'SAMPLE_ID']))
                 print(e)
@@ -943,7 +945,7 @@ while True:
         
                 
         df.reset_index(drop=True, inplace=True)
-
+ 
         client.log("Dumping Embeddings")
         for key in image_embedding_dict:
           image_embedding_dict[key] = image_embedding_dict[key].cpu().detach().numpy()
@@ -1101,7 +1103,7 @@ while True:
         
         
         widths,heights, df = _convert_dataset(split_name = "", sampleIDs = sampleIDs, filenames=image_filenames, captions=translations, dataset_dir="./save/", tfrecord_filename="crawling_at_home_"+ 'FIRST_SAMPLE_ID_IN_SHARD_'+str(FIRST_SAMPLE_ID_IN_SHARD)+"_LAST_SAMPLE_ID_IN_SHARD_"+str(LAST_SAMPLE_ID_IN_SHARD)+"_"+str(shard_of_chunk), num_chards=1, df=df)
-
+ 
         
         for row_index, row in df.iterrows():
             df.at[row_index,'WIDTH'] = widths[row_index]
@@ -1120,16 +1122,16 @@ while True:
         import shutil
         shutil.rmtree(img_output_folder)
         ''' 
-
+ 
         # Now we need to upload for Crawling@Home
-
+ 
         from pathlib import Path
-
+ 
         saves = Path("./save")
-
+ 
         client.log("Uploading CSV")
         uploadGdrive(f"./save/FIRST_SAMPLE_ID_IN_SHARD_{FIRST_SAMPLE_ID_IN_SHARD}_LAST_SAMPLE_ID_IN_SHARD_{LAST_SAMPLE_ID_IN_SHARD}_"+str(shard_of_chunk)+".csv")
-
+ 
         client.log("Uploading TFRECORD")
         tfrecords = [*saves.glob("*.tfrecord")]
         for f in tfrecords:
@@ -1138,28 +1140,29 @@ while True:
         
         client.log("Uploading Image Embeddings")
         uploadGdrive(f"./save/image_embedding_dict-FIRST_SAMPLE_ID_IN_SHARD_{FIRST_SAMPLE_ID_IN_SHARD}_LAST_SAMPLE_ID_IN_SHARD_{LAST_SAMPLE_ID_IN_SHARD}_"+str(shard_of_chunk)+".pkl")
-
+ 
         client._markjobasdone(len(df))
-
+ 
         print("Complete time --- %s seconds ---" % (time.time() - start_time))
         #import sys
         #sys.exit(0)
-
-
+ 
+ 
     client.bye()
     exit()
-
+ 
  except Exception as e:
     from time import strftime, sleep
     import traceback
-
+ 
     print("--------------------")
     traceback.print_exc()
     print("--------------------")
-
+ 
     print(f"crawling@home encountered an error ({e}) at {strftime('%H:%M:%S')}, restarting crawling@home...")
-
+ 
     os.system("ulimit -n 120000")
     sleep(30)
-
+ 
     # now we will attempt to connect again
+    #worker name: sparks-glisten-84
