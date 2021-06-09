@@ -1,6 +1,13 @@
 YOUR_NICKNAME_FOR_THE_LEADERBOARD = "rvencu" #@param {type:"string"}
 CRAWLINGATHOME_SERVER_URL = "http://crawlingathome.duckdns.org/"
 
+from contextlib import contextmanager
+import sys
+import numpy as np
+from PIL import Image
+
+import time
+
 import os
 #from IPython.utils import io
 #from IPython.display import clear_output
@@ -8,6 +15,30 @@ from time import sleep
 
 import json, requests
 from pathlib import Path
+import multiprocessing
+n_processes = multiprocessing.cpu_count() # * 2
+
+similarity_threshold = 0.3
+classifier_embbedings_calculated= False
+import time
+import os
+from pathlib import Path
+
+import gc
+#import torch.nn as nn
+#cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
+
+from zipfile import ZipFile
+import zipfile
+import zlib
+import pickle
+
+import gc
+import math
+
+import random
+
+import tensorflow as tf
 
 def refreshToken(client_id, client_secret, refresh_token):
     params = {
@@ -25,9 +56,6 @@ def refreshToken(client_id, client_secret, refresh_token):
         return r.json()['access_token']
     else:
         return None
-
-from contextlib import contextmanager
-import sys, os
 
 @contextmanager
 def suppress_stdout():
@@ -85,12 +113,7 @@ def imgfiles_to_embeddings(list_of_files, batch_size, model, preprocess):
                 print("Minimal batch_size is 2 ")
                 return []
 
-              import numpy as np
-              from PIL import Image
 
-              import time
-
-              import os
               print("len(list_of_files)")
               print(len(list_of_files))
               #print(os.getcwd())
@@ -178,8 +201,254 @@ def imgfiles_to_embeddings(list_of_files, batch_size, model, preprocess):
               return img_embeddings
 
 
+def prepare_dirs():
+        os.system("ulimit -n 120000")
+
+        os.system('mkdir ./save')
+        os.system('rm ./save/*.*')    
+
+        os.system('mkdir ./save/images')
+        os.system('rm ./save/images/*.*')
+        
+        
+        os.system('mkdir ./finished')
+        os.system('rm ./finished/*.*')
 
 
+
+
+def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_output_folder, n_processes):
+
+    time_out=0.8
+
+    try:
+      with suppress_stdout():
+        # avoid importing twice
+        grequests.get
+    except:
+        import grequests
+    
+    import os
+    import time
+    import json
+    from collections import OrderedDict
+    try:
+      import cairosvg
+    except:
+      print("failed loading cairosvg")
+
+    import pickle
+
+    #print("Number of lines in the chunk: " + str(len(content)))
+    from pathlib import Path
+
+    import time
+
+    processed_contentlines= 0
+    urls=[]
+    alttexts=[]
+
+    dedupe_urls=[]
+    dedupe_alttexts=[]
+
+    processed_samples =[]
+
+
+    CURRENT_SAMPLE_ID=FIRST_SAMPLE_ID_IN_CHUNK
+
+    for line in content:
+    #print(line)
+      line_str =line.decode("utf-8")
+      alt_text_result=0
+      img_result=0
+
+      img_result =line_str.find("IMG@")
+      processed_contentlines += 1
+      if img_result>0:
+        alt_text_result = line_str.find("alt\":")
+        
+        if alt_text_result>0:
+          #print(line_str)
+          data = json.loads(line_str)
+          
+          linklist= data['Envelope']['Payload-Metadata']['HTTP-Response-Metadata']['HTML-Metadata']['Links']
+                
+          for e in linklist:
+            if "alt" in e:
+              
+              if len(e["alt"]) >4:
+                #print(e["alt"])
+
+                try:
+                  if e["url"][0] =="h" and not e["url"] in dedupe_urls and not e["alt"] in dedupe_alttexts:
+                    
+                    urls.append(e["url"])
+                    alttexts.append(e["alt"].encode("ascii", "ignore").decode())
+                    dedupe_urls.append(e["url"])
+                    dedupe_alttexts.append(e["alt"].encode("ascii", "ignore").decode())
+                    #print("***")
+                    #print("len(urls) "+str(len(urls)))
+                    #print("len(alttexts) "+str(len(alttexts)))
+                    #print("len(e[alt]) "+str(len(e["alt"])))
+            
+                except:
+                  continue
+
+      if len(urls)>2000:
+        
+            
+        try:
+          with suppress_stdout():
+            # Once the last line of content is filtered, send the last requests
+            rs = (grequests.get(u, timeout=time_out) for u in urls)
+
+            os.system("ulimit -n 120000")
+            responses = grequests.map(rs)
+            sleep(0.8)
+        except:
+          continue
+
+        for i in range (len(responses)):
+          try:
+            
+            if responses[i].status_code == 200 and  responses[i].headers['Content-Type'][:3]=="ima" and len(responses[i].content)>5000:
+
+                #print(urls[i])
+                filetype = Path(urls[i]).suffix    #os.path.splitext(e["url"])[1]
+                #print(filetype)
+
+                if len(filetype)<4:
+                  continue
+
+                if filetype[:4] ==".jpg" or filetype[:4] ==".JPG" or filetype[:4] ==".png" or filetype[:4] ==".PNG" or filetype[:4] ==".svg" or filetype[:4] ==".SVG" or filetype[:4] ==".gif" or filetype[:4] ==".GIF" or filetype[:4] ==".bmp" or filetype[:4] ==".BMP" or filetype[:4] ==".tif" or filetype[:4] ==".TIF":
+                  if len(filetype)>4:
+                    filetype = filetype[:4] 
+
+
+                if (filetype[:5] ==".webp" or filetype[:5] ==".WEBP" or filetype[:5] ==".jpeg" or filetype[:5] ==".JPEG")  and len(filetype)>5:
+                  filetype = filetype[:5] 
+
+                if filetype[:4] != ".jpg" and filetype[:4] != ".JPG" and filetype[:4] != ".png" and filetype[:4] !=".PNG" and filetype[:4] !=".svg" and filetype[:4] !=".SVG" and filetype[:4] !=".gif" and filetype[:4] != ".GIF" and filetype[:4] !=".bmp" and filetype[:4] !=".BMP" and filetype[:4] !=".tif" and filetype[:4] !=".TIF"and filetype[:5] !=".webp" and filetype[:5] !=".WEBP" and filetype[:5] !=".jpeg" and filetype[:5] !=".JPEG":
+                  continue
+                    
+                if filetype == ".svg":
+                  #print("SVG found")
+                  try:
+                    output_filename= img_output_folder + str(CURRENT_SAMPLE_ID)+filetype
+                    cairosvg.svg2png( url=urls[i], write_to=output_filename, output_height=600)
+                    #print("SVG converted")
+                  except:
+                    continue
+                else:
+                  try:
+                      img_data = responses[i].content
+                      with open(img_output_folder + str(CURRENT_SAMPLE_ID)+filetype, 'wb') as handler:
+                          handler.write(img_data)
+                      #print("Saved: "+img_output_folder + str(CURRENT_SAMPLE_ID)+filetype)
+                  except:
+                    continue
+
+                processed_samples.append([CURRENT_SAMPLE_ID, urls[i], alttexts[i]])
+                
+                CURRENT_SAMPLE_ID +=1
+                
+              
+          except:
+            continue
+
+        urls=[]
+        alttexts=[]
+
+
+    try:
+      with suppress_stdout():
+        # Once the last line of content is filtered, send the last requests
+        rs = (grequests.get(u, timeout=time_out) for u in urls)
+  
+        os.system("ulimit -n 120000")
+        responses = grequests.map(rs)
+        sleep(0.8)
+    except:
+      responses=[]
+
+    for i in range (len(responses)):
+      if responses[i]==None:
+        continue
+
+      try:
+        
+        if responses[i].status_code == 200 and  responses[i].headers['Content-Type'][:3]=="ima" and len(responses[i].content)>5000:
+            #print(urls[i])
+            filetype = Path(urls[i]).suffix 
+            if len(filetype)<4:
+              continue
+
+            if filetype[:4] ==".jpg" or filetype[:4] ==".JPG" or filetype[:4] ==".png" or filetype[:4] ==".PNG" or filetype[:4] ==".svg" or filetype[:4] ==".SVG" or filetype[:4] ==".gif" or filetype[:4] ==".GIF" or filetype[:4] ==".bmp" or filetype[:4] ==".BMP" or filetype[:4] ==".tif" or filetype[:4] ==".TIF":
+              if len(filetype)>4:
+                filetype = filetype[:4] 
+
+            if (filetype[:5] ==".webp" or filetype[:5] ==".WEBP" or filetype[:5] ==".jpeg" or filetype[:5] ==".JPEG")  and len(filetype)>5:
+              filetype = filetype[:5] 
+
+            if filetype[:4] != ".jpg" and filetype[:4] != ".JPG" and filetype[:4] != ".png" and filetype[:4] !=".PNG" and filetype[:4] !=".svg" and filetype[:4] !=".SVG" and filetype[:4] !=".gif" and filetype[:4] != ".GIF" and filetype[:4] !=".bmp" and filetype[:4] !=".BMP" and filetype[:4] !=".tif" and filetype[:4] !=".TIF"and filetype[:5] !=".webp" and filetype[:5] !=".WEBP" and filetype[:5] !=".jpeg" and filetype[:5] !=".JPEG":
+              continue
+
+
+            if filetype == ".svg":
+              #print("SVG found")
+              try:
+                output_filename= img_output_folder + str(CURRENT_SAMPLE_ID)+filetype
+                with suppress_stdout():
+                  cairosvg.svg2png( url=urls[i], write_to=output_filename, output_height=600)
+
+              except:
+                continue
+            else:
+              try:
+                with suppress_stdout():
+                    img_data = responses[i].content
+                    with open(img_output_folder + str(CURRENT_SAMPLE_ID)+filetype, 'wb') as handler:
+                        handler.write(img_data)
+                    if os.path.getsize(img_output_folder + str(CURRENT_SAMPLE_ID)+filetype) >300000:
+                      #print("resizing img")
+                      img = Image.open(img_output_folder + str(CURRENT_SAMPLE_ID)+filetype).convert("RGB")  
+                      basewidth = 1280
+                      
+                      wpercent = (basewidth/float(img.size[0]))
+                      hsize = int((float(img.size[1])*float(wpercent)))
+                      img = img.resize((basewidth,hsize), Image.ANTIALIAS)
+                      os.remove(img_output_folder + str(CURRENT_SAMPLE_ID)+filetype)
+                      img.save(img_output_folder + str(CURRENT_SAMPLE_ID)+'.jpg', quality=90)
+
+              except:
+                continue
+
+            processed_samples.append([CURRENT_SAMPLE_ID, urls[i], alttexts[i] ])
+            CURRENT_SAMPLE_ID +=1
+            
+    
+            
+
+      except:
+        continue
+
+
+    import pandas as pd
+    sample_ids= []
+    sample_urls=[]
+    sample_texts=[]
+
+
+    for e in processed_samples:
+      sample_ids.append(e[0])
+      sample_urls.append(e[1])
+      sample_texts.append(e[2])
+
+    df = pd.DataFrame(list(zip(sample_ids,sample_urls,sample_texts)),   columns =['SAMPLE_ID', 'URL', 'TEXT'])
+
+    output_filename= csv_output_folder +"FIRST_SAMPLE_ID_"+str(FIRST_SAMPLE_ID_IN_CHUNK) + "__LAST_SAMPLE_ID_"+ str(CURRENT_SAMPLE_ID-1)+"_"+str(n_processes)+".csv"
+  
+    df.to_csv(output_filename ,sep = '|',header=True, mode='w', index=False)
 
 
 
@@ -206,18 +475,8 @@ while True:
 
         #with io.capture_output() as _:
 
-        # don't print to console
-        os.system("ulimit -n 120000")
-
-        os.system('mkdir ./save')
-        os.system('rm ./save/*.*')    
-
-        os.system('mkdir ./save/images')
-        os.system('rm ./save/images/*.*')
-        
-        
-        os.system('mkdir ./finished')
-        os.system('rm ./finished/*.*')
+        with suppress_stdout():
+          prepare_dirs()
 
         # Crawling@Home
         client.newJob()
@@ -234,302 +493,7 @@ while True:
         shard_of_chunk = client.shard_piece  # should have values 0 - 1 ; says which 50% of a chunk will be processed
         
 
-        import multiprocessing
-        n_processes = multiprocessing.cpu_count() # * 2
-        
-        similarity_threshold = 0.3
-        
-        import time
         start_time = time.time()
-        import os
-        from pathlib import Path
-        
-        import gc
-        #import torch.nn as nn
-        #cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
-        
-        from zipfile import ZipFile
-        import zipfile
-        import zlib
-        import pickle
-        
-    
-
-        def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_output_folder, n_processes):
-        
-            time_out=0.8
-
-            #with io.capture_output() as _:
-            try:
-                # avoid importing twice
-                grequests.get
-            except:
-                import grequests
-            
-            import os
-            import time
-            import json
-            from collections import OrderedDict
-            try:
-              import cairosvg
-            except:
-              print("failed loading cairosvg")
-
-            import pickle
-        
-            #print("Number of lines in the chunk: " + str(len(content)))
-            from pathlib import Path
-        
-            #import spacy
-            #from spacy_langdetect import LanguageDetector
-            #import langid
-            import time
-            #from IPython.display import clear_output 
-        
-            processed_contentlines= 0
-            urls=[]
-            alttexts=[]
-        
-            dedupe_urls=[]
-            dedupe_alttexts=[]
-        
-            processed_samples =[]
-            #translator = Translator()
-        
-            CURRENT_SAMPLE_ID=FIRST_SAMPLE_ID_IN_CHUNK
-            #alt_text_count = 0
-            #working_alt_text_count = 0
-        
-            #start_time = time.time()
-            for line in content:
-            #print(line)
-              line_str =line.decode("utf-8")
-              alt_text_result=0
-              img_result=0
-        
-              img_result =line_str.find("IMG@")
-              processed_contentlines += 1
-              if img_result>0:
-                alt_text_result = line_str.find("alt\":")
-                
-                if alt_text_result>0:
-                  #print(line_str)
-                  data = json.loads(line_str)
-                  
-                  linklist= data['Envelope']['Payload-Metadata']['HTTP-Response-Metadata']['HTML-Metadata']['Links']
-                  #print(data['Envelope']['Payload-Metadata']['HTTP-Response-Metadata']['HTML-Metadata'])
-        
-                  for e in linklist:
-                    if "alt" in e:
-                      
-                      if len(e["alt"]) >4:
-                        #print(e["alt"])
-        
-                        try:
-                          if e["url"][0] =="h" and not e["url"] in dedupe_urls and not e["alt"] in dedupe_alttexts:
-                            
-                            urls.append(e["url"])
-                            alttexts.append(e["alt"].encode("ascii", "ignore").decode())
-                            dedupe_urls.append(e["url"])
-                            dedupe_alttexts.append(e["alt"].encode("ascii", "ignore").decode())
-                            #print("***")
-                            #print("len(urls) "+str(len(urls)))
-                            #print("len(alttexts) "+str(len(alttexts)))
-                            #print("len(e[alt]) "+str(len(e["alt"])))
-                    
-                        except:
-                          continue
-        
-              if len(urls)>2000:
-                
-                    
-                try:
-                  with suppress_stdout():
-                    # Once the last line of content is filtered, send the last requests
-                    rs = (grequests.get(u, timeout=time_out) for u in urls)
-
-                    os.system("ulimit -n 120000")
-                    responses = grequests.map(rs)
-                    sleep(0.8)
-                except:
-                  continue
-        
-                for i in range (len(responses)):
-                  try:
-                    
-                    if responses[i].status_code == 200 and  responses[i].headers['Content-Type'][:3]=="ima" and len(responses[i].content)>5000:
-        
-                        #print(urls[i])
-                        filetype = Path(urls[i]).suffix    #os.path.splitext(e["url"])[1]
-                        #print(filetype)
-        
-                        if len(filetype)<4:
-                          continue
-        
-                        if filetype[:4] ==".jpg" or filetype[:4] ==".JPG" or filetype[:4] ==".png" or filetype[:4] ==".PNG" or filetype[:4] ==".svg" or filetype[:4] ==".SVG" or filetype[:4] ==".gif" or filetype[:4] ==".GIF" or filetype[:4] ==".bmp" or filetype[:4] ==".BMP" or filetype[:4] ==".tif" or filetype[:4] ==".TIF":
-                          if len(filetype)>4:
-                            filetype = filetype[:4] 
-        
-        
-                        if (filetype[:5] ==".webp" or filetype[:5] ==".WEBP" or filetype[:5] ==".jpeg" or filetype[:5] ==".JPEG")  and len(filetype)>5:
-                          filetype = filetype[:5] 
-        
-                        if filetype[:4] != ".jpg" and filetype[:4] != ".JPG" and filetype[:4] != ".png" and filetype[:4] !=".PNG" and filetype[:4] !=".svg" and filetype[:4] !=".SVG" and filetype[:4] !=".gif" and filetype[:4] != ".GIF" and filetype[:4] !=".bmp" and filetype[:4] !=".BMP" and filetype[:4] !=".tif" and filetype[:4] !=".TIF"and filetype[:5] !=".webp" and filetype[:5] !=".WEBP" and filetype[:5] !=".jpeg" and filetype[:5] !=".JPEG":
-                          continue
-                            
-                        if filetype == ".svg":
-                          #print("SVG found")
-                          try:
-                            output_filename= img_output_folder + str(CURRENT_SAMPLE_ID)+filetype
-                            cairosvg.svg2png( url=urls[i], write_to=output_filename, output_height=600)
-                            #print("SVG converted")
-                          except:
-                            continue
-                        else:
-                          try:
-                              img_data = responses[i].content
-                              with open(img_output_folder + str(CURRENT_SAMPLE_ID)+filetype, 'wb') as handler:
-                                  handler.write(img_data)
-                              #print("Saved: "+img_output_folder + str(CURRENT_SAMPLE_ID)+filetype)
-                          except:
-                            continue
-        
-                        processed_samples.append([CURRENT_SAMPLE_ID, urls[i], alttexts[i]])
-                        
-                        CURRENT_SAMPLE_ID +=1
-                        
-                      
-                  except:
-                    continue
-        
-                urls=[]
-                alttexts=[]
-        
-        
-                
-        
-                #print("Worker "+str(index_w)+"--- %s seconds ---" % (time.time() - start_time))
-                
-                #print("processed_samples-len: "+str(len(processed_samples)))
-                #print("processed_samples[0]-len: "+str(len(processed_samples[0])))
-        
-                #print("Currently processed content lines: "+str(processed_contentlines))
-        
-                #clear_output()
-            #print("last filtering")
-            #print(len(urls))
-            try:
-              with suppress_stdout():
-                # Once the last line of content is filtered, send the last requests
-                rs = (grequests.get(u, timeout=time_out) for u in urls)
-          
-                os.system("ulimit -n 120000")
-                responses = grequests.map(rs)
-                sleep(0.8)
-            except:
-              responses=[]
-            
-            #print("len(responses): " + str(len(responses)))
-            #print(responses)
-            for i in range (len(responses)):
-              if responses[i]==None:
-                continue
-              #print(i)
-              #print(responses[i].status_code)
-              #print(responses[i].headers['Content-Type'][:3])
-              #print(len(responses[i].content))
-              try:
-                
-                if responses[i].status_code == 200 and  responses[i].headers['Content-Type'][:3]=="ima" and len(responses[i].content)>5000:
-                    #print(urls[i])
-                    filetype = Path(urls[i]).suffix 
-                    if len(filetype)<4:
-                      continue
-        
-                    if filetype[:4] ==".jpg" or filetype[:4] ==".JPG" or filetype[:4] ==".png" or filetype[:4] ==".PNG" or filetype[:4] ==".svg" or filetype[:4] ==".SVG" or filetype[:4] ==".gif" or filetype[:4] ==".GIF" or filetype[:4] ==".bmp" or filetype[:4] ==".BMP" or filetype[:4] ==".tif" or filetype[:4] ==".TIF":
-                      if len(filetype)>4:
-                        filetype = filetype[:4] 
-        
-                    if (filetype[:5] ==".webp" or filetype[:5] ==".WEBP" or filetype[:5] ==".jpeg" or filetype[:5] ==".JPEG")  and len(filetype)>5:
-                      filetype = filetype[:5] 
-        
-                    if filetype[:4] != ".jpg" and filetype[:4] != ".JPG" and filetype[:4] != ".png" and filetype[:4] !=".PNG" and filetype[:4] !=".svg" and filetype[:4] !=".SVG" and filetype[:4] !=".gif" and filetype[:4] != ".GIF" and filetype[:4] !=".bmp" and filetype[:4] !=".BMP" and filetype[:4] !=".tif" and filetype[:4] !=".TIF"and filetype[:5] !=".webp" and filetype[:5] !=".WEBP" and filetype[:5] !=".jpeg" and filetype[:5] !=".JPEG":
-                      continue
-        
-        
-                    if filetype == ".svg":
-                      #print("SVG found")
-                      try:
-                        output_filename= img_output_folder + str(CURRENT_SAMPLE_ID)+filetype
-                        cairosvg.svg2png( url=urls[i], write_to=output_filename, output_height=600)
-                        #print("Saved: "+img_output_folder + str(CURRENT_SAMPLE_ID)+filetype)
-                      except:
-                        continue
-                    else:
-                      try:
-        
-                        img_data = responses[i].content
-                        with open(img_output_folder + str(CURRENT_SAMPLE_ID)+filetype, 'wb') as handler:
-                            handler.write(img_data)
-                        if os.path.getsize(img_output_folder + str(CURRENT_SAMPLE_ID)+filetype) >300000:
-                          #print("resizing img")
-                          img = Image.open(img_output_folder + str(CURRENT_SAMPLE_ID)+filetype).convert("RGB")  
-                          basewidth = 1280
-                          
-                          wpercent = (basewidth/float(img.size[0]))
-                          hsize = int((float(img.size[1])*float(wpercent)))
-                          img = img.resize((basewidth,hsize), Image.ANTIALIAS)
-                          os.remove(img_output_folder + str(CURRENT_SAMPLE_ID)+filetype)
-                          img.save(img_output_folder + str(CURRENT_SAMPLE_ID)+'.jpg', quality=90)
-                        #img_output_folder + str(CURRENT_SAMPLE_ID)+filetype
-                        #print(responses[i].headers)
-        
-                        
-                        #print("Saved: "+img_output_folder + str(CURRENT_SAMPLE_ID)+filetype)
-        
-                      except:
-                        continue
-        
-                    processed_samples.append([CURRENT_SAMPLE_ID, urls[i], alttexts[i] ])
-                    CURRENT_SAMPLE_ID +=1
-                    
-            
-                    
-        
-              except:
-                continue
-        
-        
-            import pandas as pd
-            sample_ids= []
-            sample_urls=[]
-            sample_texts=[]
-
-            #nlp = spacy.load('en')
-            #nlp.add_pipe(LanguageDetector(), name='language_detector', last=True)
-            for e in processed_samples:
-
-              #text= e[2]
-              #doc = nlp(text[:76])
-              # document level language detection. Think of it like average language of the document!
-              #lang_detection = doc._.language
-              
-              #lang_detection2 = langid.classify(text[:76])
-              #if lang_detection["language"] == "en" or lang_detection2[0]=="en":
-
-              sample_ids.append(e[0])
-              sample_urls.append(e[1])
-              sample_texts.append(e[2])
-
-            df = pd.DataFrame(list(zip(sample_ids,sample_urls,sample_texts)),   columns =['SAMPLE_ID', 'URL', 'TEXT'])
-
-            output_filename= csv_output_folder +"FIRST_SAMPLE_ID_"+str(FIRST_SAMPLE_ID_IN_CHUNK) + "__LAST_SAMPLE_ID_"+ str(CURRENT_SAMPLE_ID-1)+"_"+str(n_processes)+".csv"
-          
-            df.to_csv(output_filename ,sep = '|',header=True, mode='w', index=False)
-        
-        
-        
-
         
         client.log("Downloading Images")
         #start_time = time.time()
@@ -549,13 +513,12 @@ while True:
         if shard_of_chunk ==0: 
             linetobegin= 1 #int(counter /2)
             linetoend= int(lines_in_wat /2)
-            #content= content[int(len(content)*0.0):int(len(content)*0.5)]     
+
         if shard_of_chunk ==1: 
             linetobegin= int(lines_in_wat /2)
             linetoend= lines_in_wat 
 
-            #content= content[int(len(content)*0.5):]    
-        #content = content[:int(len(content)*0.5)]
+   
         line_in_wat = 0
         i=0
         current_line = -10
@@ -576,8 +539,7 @@ while True:
                   current_line +=1
 
                 if current_line % lines_for_each_worker==lines_for_each_worker-1 or current_line==linetoend:
-                    
-                    #for i in range(n_processes):
+ 
                     
                     print("Starting worker " + str(i ) + " of " + str(n_processes) + "...")
                     content_chunk =content 
@@ -703,7 +665,7 @@ while True:
 
         print("len(img_emb_list)")
         print(len(img_emb_list))
-        #print( sys.getsizeof(img_emb_list))
+
         image_embedding_dict = {}
 
         c= 0
@@ -752,25 +714,20 @@ while True:
 
         print("text embeddings done")
 
-        #texts_by_sample_id_dict[df.at[row_index,'SAMPLE_ID'] ] 
         #### NSFW detector categories text embeddings
         
         #0-18 /first 19 are not NSFW
         nsfw_text_categories = ["neutral","selfie", "illustration, drawng", "toys, play, kids, children", "teddy bear, puppet", "animal, bird, mammal, insect" "fashion, clothes", "logo, commercial, ad, advertisement", "drawing, painting","anime, cartoon","comedy, fun","romance, love story","thriller, suspense, crime story","action, action movie", "horror, monster movie", "documentary", "news, journalism", "entertainment", "talk show", "porn, sex, sperm, nipples, breats, tits, boops, penis, dick, cock, clitoris, vagina, fuck, lust, horny, sexual, lick, licking",  "porn, sex, sperm, nipples", "porn, sex, sperm, penis, dick, cock", "nipples, breats, tits, boops, sexy", "penis, dick, cock", "clitoris, vagina", "sex, fuck, lust, horny, sexual, lick, licking", "porn, sex, sexy","sexy, hot","sperm, skin","lust, horny, sexual","lick, licking, body", "anime, hentai, sexy", "cartoon, sexy, sex", "hentai", "anime, sexy, breasts", "hentai"]
-
-        nsfw_text_tokenized = clip.tokenize(nsfw_text_categories).to(device)
-        nsfw_text_features =[]
-        with torch.no_grad():
-          nsfw_text_embed = model.encode_text(nsfw_text_tokenized)
+        if classifier_embbedings_calculated == False:
+          nsfw_text_tokenized = clip.tokenize(nsfw_text_categories).to(device)
+          nsfw_text_features =[]
+          with torch.no_grad():
+            nsfw_text_embed = model.encode_text(nsfw_text_tokenized)
 
         for i in range(nsfw_text_embed.shape[0]):
             nsfw_text_features.append(nsfw_text_embed[i])
 
-        #nsfw_text_features = np.array_split(nsfw_text_embed, len(nsfw_text_categories))
-
-        
-        
-        
+         
         
         listofzeros = ["-"] * len(df)
         
@@ -781,34 +738,31 @@ while True:
         #first 4 are underaged, 0-3
         underaged_categories = ["teenager, teen", "kid, child, teenager, teen, baby or toddler, underaged, little girl, little boy", "kid, child, little girl, little boy", "baby, toddler","adult, woman, man, grownup, grown person,full-aged of legal age","full-aged, of legal age, adult","woman, man","adult, woman, man, grownup, grown person,full-aged of legal age"]
         
-
-        underaged_text_tokenized = clip.tokenize(underaged_categories).to(device)
-        underaged_text_features =[]
-        with torch.no_grad():
-          underaged_text_embed = model.encode_text(underaged_text_tokenized)
+        if classifier_embbedings_calculated == False:
+          underaged_text_tokenized = clip.tokenize(underaged_categories).to(device)
+          underaged_text_features =[]
+          with torch.no_grad():
+            underaged_text_embed = model.encode_text(underaged_text_tokenized)
 
         for i in range(underaged_text_embed.shape[0]):
             underaged_text_features.append(underaged_text_embed[i])
 
         
-        
-
+      
 
         #0-20 /first 21 are not animals
         animal_categories = ["lifelss object, thing", "thing, object", "material", "furniture","wall", "house", "tree", "wood","ground","industry", "table", "bed", "tool", "dress, clothes", "door", "chair", "rock, stone", "human", "man", "woman", "man, woman", "animal","cat","dog", "cow", "pig", "goat", "sheep", "elephant", "horse", "horse, elephant, pig, dog, cat, sheep, goat, animal", "life", "wildlife"]
-        
-        animal_text_tokenized = clip.tokenize(animal_categories).to(device)
-        animal_text_features =[]
-        with torch.no_grad():
-          animal_text_embed = model.encode_text(animal_text_tokenized)
+        if classifier_embbedings_calculated == False:
+          animal_text_tokenized = clip.tokenize(animal_categories).to(device)
+          animal_text_features =[]
+          with torch.no_grad():
+            animal_text_embed = model.encode_text(animal_text_tokenized)
+
+        # no need to calculate them again next iteration ;)
+        classifier_embbedings_calculated = True
 
         for i in range(animal_text_embed.shape[0]):
             animal_text_features.append(animal_text_embed[i])
-
-
-        #print(len(animal_categories))  
-        #print(len(animal_text_features))  
-        ######### 
 
         
         # given an iterable of pairs return the key corresponding to the greatest value
@@ -824,9 +778,7 @@ while True:
         
         df["similarity"]=listofzeros
         
-        #image_embedding_dict= {}
-        #print ("len(df)"+str(len(df)))
-        
+
         img_dict_counter= 0
         #print ("len(df) before 1st for row_index, row in df.iterrows():"+str(len(df)))
 
@@ -866,10 +818,7 @@ while True:
 
                 current_text_embedding = text_embedding_list[index_of_row_in_list]
                 current_image_embedding = image_embedding_dict[str(sample_id)]
-                #print("current_image_embedding")
-                #print(current_image_embedding.shape)
-                #print("current_text_embedding")
-                #print(current_text_embedding.shape)
+
                 similarity= float (cosine_similarity(torch.reshape(current_text_embedding, (1, 512)) , current_image_embedding )) 
                 if similarity > similarity_threshold:
                     df.at[row_index,'similarity'] = similarity
@@ -1138,14 +1087,7 @@ while True:
                 sys.stdout.flush()
                 return widths,heights, df
         
-        
-        import random
-        import math
-        #import os
-        import sys
-        from PIL import Image
-        import tensorflow as tf
-        
+               
         
         sampleIDs= []
         image_filenames=[]
@@ -1162,8 +1104,7 @@ while True:
         
         
         widths,heights, df = _convert_dataset(split_name = "", sampleIDs = sampleIDs, filenames=image_filenames, captions=translations, dataset_dir="./save/", tfrecord_filename="crawling_at_home_"+ 'FIRST_SAMPLE_ID_IN_SHARD_'+str(FIRST_SAMPLE_ID_IN_SHARD)+"_LAST_SAMPLE_ID_IN_SHARD_"+str(LAST_SAMPLE_ID_IN_SHARD)+"_"+str(shard_of_chunk), num_chards=1, df=df)
-        #print("len(heights)" + str(len(heights)))
-        #print("len(df)" + str(len(df)))
+
         
         for row_index, row in df.iterrows():
             df.at[row_index,'WIDTH'] = widths[row_index]
@@ -1225,3 +1166,4 @@ while True:
     sleep(30)
 
     # now we will attempt to connect again
+    #worker name: lateener-miseducations-838
