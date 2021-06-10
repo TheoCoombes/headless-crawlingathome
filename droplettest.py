@@ -296,8 +296,7 @@ def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_outp
                 except:
                   continue
  
-      if len(urls)>2000:
-        
+      if len(urls)>2000 * n_processes:
             
         try:
           with suppress_stdout():
