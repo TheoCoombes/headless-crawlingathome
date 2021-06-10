@@ -223,12 +223,7 @@ def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_outp
 
     time_out=0.8
     with suppress_stdout():
-        try:
-          with suppress_stdout():
-            # avoid importing twice
-            grequests.get
-        except:
-            import grequests
+        import fgrequests
         
         import os
         import time
@@ -301,10 +296,8 @@ def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_outp
         try:
           with suppress_stdout():
             # Once the last line of content is filtered, send the last requests
-            rs = (grequests.get(u, timeout=time_out) for u in urls)
- 
             os.system("ulimit -n 120000")
-            responses = grequests.map(rs)
+            responses = fgrequests.build(urls, timeout=time_out)
             sleep(0.8)
         except:
           continue
@@ -364,10 +357,8 @@ def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_outp
     try:
       with suppress_stdout():
         # Once the last line of content is filtered, send the last requests
-        rs = (grequests.get(u, timeout=time_out) for u in urls)
-  
         os.system("ulimit -n 120000")
-        responses = grequests.map(rs)
+        responses = fgrequests.build(urls, timeout=time_out)
         sleep(0.8)
     except:
       responses=[]
