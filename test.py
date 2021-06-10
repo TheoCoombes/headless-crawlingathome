@@ -81,7 +81,7 @@ while client.jobCount() > 0:
     
 
     import multiprocessing
-    n_processes = min(multiprocessing.cpu_count() * 2, 16)
+    n_processes = multiprocessing.cpu_count()
 
     from atpbar import atpbar
     from atpbar import register_reporter, find_reporter, flush

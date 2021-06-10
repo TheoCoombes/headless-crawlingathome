@@ -35,6 +35,8 @@ os.system("pip install langid")
 os.system("pip install tfr_image")
  
 os.system("pip install py7zr")
+
+os.system("pip install atpbar")
  
 import py7zr
 
