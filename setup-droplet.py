@@ -1,6 +1,5 @@
 import os
 
-os.system("pip install gevent")
 os.system("pip install requests==2.25")
 
 os.system("pip install tensorflow==2.4")
@@ -15,7 +14,7 @@ os.system("python3 -m spacy download en_core_web_sm")
 
 #os.system("pip install IPython")
 
-os.system("pip install grequests")
+os.system("pip install fgrequests")
 
 os.system("pip install torch==1.7.1+cpu torchvision==0.8.2+cpu torchaudio==0.7.2 -f https://download.pytorch.org/whl/torch_stable.html")
 os.system("pip install ftfy regex tqdm")
