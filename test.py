@@ -119,7 +119,7 @@ while client.jobCount() > 0:
     def worker(content,index_w, FIRST_SAMPLE_ID_IN_CHUNK, csv_output_folder,img_output_folder, n_processes, reporter):
     
         time_out=0.8
-        import grequests
+        import fgrequests
         import os
         import time
         import json
@@ -197,9 +197,7 @@ while client.jobCount() > 0:
                 
             try:
               # Once the last line of content is filtered, send the last requests
-              rs = (grequests.get(u, timeout=time_out) for u in urls)
-    
-              responses = grequests.map(rs)
+              responses = fgrequests.build(urls, timeout=time_out)
             except:
               continue
     
@@ -280,9 +278,7 @@ while client.jobCount() > 0:
         #print(len(urls))
         try:
           # Once the last line of content is filtered, send the last requests
-          rs = (grequests.get(u, timeout=time_out) for u in urls)
-    
-          responses = grequests.map(rs)
+          responses = fgrequests.build(urls, timeout=time_out)
         except:
           responses=[]
         
